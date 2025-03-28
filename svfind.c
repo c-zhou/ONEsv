@@ -114,10 +114,11 @@ int main (int argc, char *argv[])
       { warn ("unknown option %s", *argv) ;
 	usage () ;
       }
+  oneSchemaDestroy(schema) ;
 
   I64      nOverlaps ;
   char    *db1Name = 0, *db2Name = 0, *cpath = 0 ;
-  OneFile *ofIn = alnOpenRead (*argv, 1, &nOverlaps, 0, &db1Name, &db2Name, &cpath) ;
+  OneFile *ofIn = open_Aln_Read (*argv, 1, &nOverlaps, 0, &db1Name, &db2Name, &cpath) ;
     
   if (!ofIn) die ("failed to open .1aln file %s", *argv) ;
 
@@ -142,8 +143,8 @@ int main (int argc, char *argv[])
   Overlap *olaps = new (nOverlaps, Overlap) ;
   int i ;
   for (i = 0 ; i < nOverlaps ; ++i)
-    { alnReadOverlap (ofIn, olaps+i) ;
-      alnSkipTrace (ofIn) ;
+    { Read_Aln_Overlap (ofIn, olaps+i) ;
+      Skip_Aln_Trace (ofIn) ;
     }
   printf ("read %d overlaps\n", (int) nOverlaps) ;
   oneFileClose (ofIn) ;
@@ -176,6 +177,11 @@ int main (int argc, char *argv[])
       oneFileClose (ofb) ;
       timeUpdate (stdout) ;
     }
+
+  free (db1Name) ;
+  free (db2Name) ;
+  free (cpath) ;
+  free (olaps) ;
 
   printf ("Total resources used: ") ; timeTotal (stdout) ;
 }

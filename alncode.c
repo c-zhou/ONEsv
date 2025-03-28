@@ -5,7 +5,7 @@
  * Description: IO for ONEcode .1aln files for Myers FASTGA package
  * Exported functions:
  * HISTORY:
- * Last edited: Aug 11 11:55 2024 (rd109)
+ * Last edited: Jul 15 13:10 2024 (rd109)
  * Created: Sat Feb 24 12:19:16 2024 (rd109)
  *-------------------------------------------------------------------
  */
@@ -29,7 +29,7 @@ static char *alnSchemaText =
   ".\n"
   "P 3 aln                     ALIGNMENTS\n"
   "D t 1 3 INT                 trace point spacing in a - global\n"
-  "O a 1 3 INT                 number of alignments for colinear groups = a chain\n"
+  "O a 0                       groups A's into a colinear chain\n"
   "G A                         chains (a) group alignment objects (A)\n"
   "D p 2 3 INT 3 INT           spacing in a,b between end of previous alignment and start of next\n"
   ".                           alignment: a_read[beg..end] b_read[beg..end], 0-indexing\n"
@@ -44,14 +44,14 @@ static char *alnSchemaText =
   "D X 1 8 INT_LIST            number of differences in alignment per trace interval\n"
 ;
 
-OneSchema *alnMakeSchema (void)
-{ return oneSchemaCreateFromText(alnSchemaText) ; }
+OneSchema *make_Aln_Schema ()
+{ return (oneSchemaCreateFromText(alnSchemaText)); }
 
   // Open the .1aln file for reading and read the header
 
-OneFile *alnOpenRead (char *filename,  int nThreads,
-		      I64  *nOverlaps, int *tspace,
-		      char **db1_name, char **db2_name, char **cpath)
+OneFile *open_Aln_Read (char *filename, int nThreads,
+			int64 *nOverlaps, int *tspace,
+			char **db1_name, char **db2_name, char **cpath)
 { OneSchema *schema;
   OneFile   *of;
   OneInfo   *refInfo;
@@ -75,11 +75,11 @@ OneFile *alnOpenRead (char *filename,  int nThreads,
     { fprintf(stderr,"%s: No alignments found in aln file\n",Prog_Name);
       goto clean_up;
     }
-  if (nOverlaps) *nOverlaps = of->info['A']->given.count;
+  *nOverlaps = of->info['A']->given.count;
     
   *db1_name = NULL;
   *db2_name = NULL;
-  *cpath    = "";
+  *cpath    = NULL;
   refInfo = of->info['<'];
   if (refInfo == NULL)
     { fprintf(stderr,"%s: No references in aln file",Prog_Name);
@@ -87,11 +87,22 @@ OneFile *alnOpenRead (char *filename,  int nThreads,
     }      
   for (i = 0; i < refInfo->accum.count; ++i)
     if (of->reference[i].count == 1)
-      *db1_name = strdup(of->reference[i].filename);
+      { if (*db1_name != NULL)
+          free(*db1_name);
+        *db1_name = strdup(of->reference[i].filename);
+      }
     else if (of->reference[i].count == 2)
-      *db2_name = strdup(of->reference[i].filename);
+      { if (*db2_name != NULL)
+          free(*db2_name);
+        *db2_name = strdup(of->reference[i].filename);
+      }
     else if (of->reference[i].count == 3)
-      *cpath = strdup(of->reference[i].filename);
+      { if (*cpath != NULL)
+          free(*cpath);
+        *cpath = strdup(of->reference[i].filename);
+      }
+  if (cpath == NULL)
+    *cpath = "";
 
   *tspace = 0;
   while (oneReadLine(of))             // advance to first alignment record
@@ -116,7 +127,7 @@ clean_up:
 
   // Next two routines read the records from the file
 
-void alnReadOverlap(OneFile *of, Overlap *ovl)
+void Read_Aln_Overlap(OneFile *of, Overlap *ovl)
 { if (of->lineType != 'A')
     { fprintf(stderr,"%s: Failed to be at start of alignment in Read_Aln_Overlap()\n",Prog_Name);
       exit (1);
@@ -147,8 +158,8 @@ void alnReadOverlap(OneFile *of, Overlap *ovl)
     }
 }
 
-int alnReadTrace(OneFile *of, U8 *trace)
-{ I64 *trace64;
+int Read_Aln_Trace(OneFile *of, uint8 *trace)
+{ int64 *trace64;
   int    tlen;
   int    j, x;
   
@@ -185,7 +196,7 @@ int alnReadTrace(OneFile *of, U8 *trace)
   return (tlen);
 }
 
-void alnSkipTrace(OneFile *of)
+void Skip_Aln_Trace(OneFile *of)
 { int    tlen;
   
   if (of->lineType != 'T')
@@ -212,7 +223,7 @@ void alnSkipTrace(OneFile *of)
 
   // And these routines write an alignment
 
-OneFile *alnOpenWrite (char *filename, int nThreads,
+OneFile *open_Aln_Write (char *filename, int nThreads,
 			 char *progname, char *version, char *commandLine,
 			 int tspace, char *db1_name, char *db2_name, char *cpath)
 { OneSchema *schema;
@@ -245,7 +256,7 @@ OneFile *alnOpenWrite (char *filename, int nThreads,
   return of;
 }
 
-void alnWriteOverlap (OneFile *of, Overlap *ovl)
+void Write_Aln_Overlap (OneFile *of, Overlap *ovl)
 { oneInt(of,0) = ovl->aread;
   oneInt(of,1) = ovl->path.abpos;
   oneInt(of,2) = ovl->path.aepos;
@@ -261,15 +272,8 @@ void alnWriteOverlap (OneFile *of, Overlap *ovl)
   oneWriteLine (of,'D',0,0);
 }
 
-void alnWriteTrace (OneFile *of, U8 *trace, int tlen)
-{ static int    tmax = 0;
-  static I64   *trace64 = NULL;
-  int    j, x;
-
-  if (tlen > tmax)
-    { tmax    = tlen*1.2 + 1024;
-      trace64 = realloc(trace64,tmax*sizeof(I64)) ;
-    }
+void Write_Aln_Trace (OneFile *of, uint8 *trace, int tlen, int64 *trace64)
+{ int j, x;
 
   j = 0;
   for (x = 1; x < tlen; x += 2)

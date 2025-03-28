@@ -10,6 +10,17 @@
  *-------------------------------------------------------------------
  */
 
+typedef unsigned char      uint8;
+typedef unsigned short     uint16;
+typedef unsigned int       uint32;
+typedef unsigned long long uint64;
+typedef signed char        int8;
+typedef signed short       int16;
+typedef signed int         int32;
+typedef signed long long   int64;
+typedef float              float32;
+typedef double             float64;
+
 typedef struct
   { void     *trace;
     int       tlen;
@@ -24,7 +35,7 @@ typedef struct
 
 typedef struct {
   Path    path;         // Path: begin- and end-point of alignment + diffs
-  U32     flags;        // Pipeline status and complementation flags
+  uint32  flags;        // Pipeline status and complementation flags
   int     aread;        // Id # of A sequence - 0 indexed
   int     bread;        // Id # of B sequence - 0 indexed
 } Overlap;
