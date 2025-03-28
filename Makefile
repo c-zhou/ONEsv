@@ -1,7 +1,8 @@
 # makefile for gaffer developed on Richard's Mac
 
 #CFLAGS= -DMACOS -O3
-CFLAGS= -DMACOS -g -Wall -target arm64-apple-macos11	# for debugging
+#CFLAGS= -DMACOS -g -Wall -target arm64-apple-macos11	# for debugging
+CFLAGS= -O3 -Wall
 
 ALL=svfind ONEview
 
