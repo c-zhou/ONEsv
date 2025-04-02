@@ -44,12 +44,14 @@ static char* schemaText =
 
 static int MAX_OVERHANG = 50 ;
 static int MAX_SIZE = 50000 ;
+static int MIN_FLANK = 5000 ;
 
 void usage (void)
 {
   fprintf (stderr, "Usage: svfind [opts] <1alnFileName>\n") ;
-  fprintf (stderr, "opts:     -w <int>         maximum overhang\n") ;
-  fprintf (stderr, "          -m <int>         maximum length\n") ;
+  fprintf (stderr, "opts:     -w <int>         maximum overhang [%d]\n", MAX_OVERHANG) ;
+  fprintf (stderr, "          -m <int>         maximum length [%d]\n", MAX_SIZE) ;
+  fprintf (stderr, "          -f <int>         minimum flanking alignment length [%d]\n", MIN_FLANK);
   fprintf (stderr, "          -a <filename>    outfile for insertions/duplications in a\n") ;
   fprintf (stderr, "          -b <filename>    outfile for insertions/duplications in b\n") ;
   
@@ -94,6 +96,11 @@ int main (int argc, char *argv[])
     else if (!strcmp (*argv, "-m") && argc > 2)
       { if ((MAX_SIZE = atoi(argv[1])) <= 0)
 	  die ("max_size %s must be a positive integer", argv[1]) ;
+	argc -= 2 ; argv += 2 ;
+      }
+    else if (!strcmp (*argv, "-f") && argc > 2)
+      { if ((MIN_FLANK = atoi(argv[1])) <= 0)
+	  die ("min_flank %s must be a positive integer", argv[1]) ;
 	argc -= 2 ; argv += 2 ;
       }
     else if (!strcmp (*argv, "-a") && argc > 2)
@@ -211,6 +218,8 @@ void insertionReport (OneFile *of, AlnSeq *as, Overlap *olap, int n)
     for (j = i+1, oj = oi + 1 ; j < n ; ++j, ++oj)
       if (oj->aread != oi->aread || oj->bread != oi->bread) break ;
       else if (COMP(oj->flags) != COMP(oi->flags)) continue ;
+      else if (oi->path.bepos < oi->path.bbpos + MIN_FLANK) continue;
+      else if (oj->path.bepos < oj->path.bbpos + MIN_FLANK) continue;
       else if (oj->path.bbpos < oi->path.bepos - MAX_OVERHANG) continue ;
       else if (oj->path.bbpos > oi->path.bepos + MAX_OVERHANG) break ;
       else if (COMP(oj->flags) &&
