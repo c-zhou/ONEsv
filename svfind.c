@@ -49,9 +49,9 @@ static int MIN_FLANK = 5000 ;
 void usage (void)
 {
   fprintf (stderr, "Usage: svfind [opts] <1alnFileName>\n") ;
-  fprintf (stderr, "opts:     -w <int>         maximum overhang\n") ;
-  fprintf (stderr, "          -m <int>         maximum length\n") ;
-  fprintf (stderr, "          -f <int>         minimum flanking alignment length\n");
+  fprintf (stderr, "opts:     -w <int>         maximum overhang [%d]\n", MAX_OVERHANG) ;
+  fprintf (stderr, "          -m <int>         maximum length [%d]\n", MAX_SIZE) ;
+  fprintf (stderr, "          -f <int>         minimum flanking alignment length [%d]\n", MIN_FLANK);
   fprintf (stderr, "          -a <filename>    outfile for insertions/duplications in a\n") ;
   fprintf (stderr, "          -b <filename>    outfile for insertions/duplications in b\n") ;
   
