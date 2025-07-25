@@ -29,6 +29,7 @@ static char* schemaText =
   "S 2 sv                    SEQUENCE VARIANT\n"
   "D o 1 3 INT               maximum overhang (global)\n"
   "D i 1 3 INT               maximum insert size (global)\n"
+  "D f 1 3 INT               minimum flanking alignment length (global)\n"
   ".                         \n"
   "O V 3 3 INT 3 INT 3 INT   variant: seqid, start, end (0-indexed, [start,end))\n"
   "D O 1 3 INT               overlap\n"
@@ -90,36 +91,36 @@ int main (int argc, char *argv[])
   while (argc > 1)
     if (!strcmp (*argv, "-w") && argc > 2)
       { if ((MAX_OVERHANG = atoi(argv[1])) <= 0)
-	  die ("max_overhang %s must be a positive integer", argv[1]) ;
-	argc -= 2 ; argv += 2 ;
+          die ("max_overhang %s must be a positive integer", argv[1]) ;
+        argc -= 2 ; argv += 2 ;
       }
     else if (!strcmp (*argv, "-m") && argc > 2)
       { if ((MAX_SIZE = atoi(argv[1])) <= 0)
-	  die ("max_size %s must be a positive integer", argv[1]) ;
-	argc -= 2 ; argv += 2 ;
+	        die ("max_size %s must be a positive integer", argv[1]) ;
+	      argc -= 2 ; argv += 2 ;
       }
     else if (!strcmp (*argv, "-f") && argc > 2)
       { if ((MIN_FLANK = atoi(argv[1])) <= 0)
-	  die ("min_flank %s must be a positive integer", argv[1]) ;
-	argc -= 2 ; argv += 2 ;
+	        die ("min_flank %s must be a positive integer", argv[1]) ;
+	      argc -= 2 ; argv += 2 ;
       }
     else if (!strcmp (*argv, "-a") && argc > 2)
       { if (!(ofa = oneFileOpenWriteNew (argv[1], schema, "sv", true, 1)))
-	  die ("failed to open .1insert file %s to write", argv[1]) ;
-	oneAddProvenance (ofa, PROG_NAME, VERSION, getCommandLine()) ;
-	ofaName = argv[1] ;
-	argc -= 2 ; argv += 2 ;
+          die ("failed to open .1insert file %s to write", argv[1]) ;
+        oneAddProvenance (ofa, PROG_NAME, VERSION, getCommandLine()) ;
+        ofaName = argv[1] ;
+        argc -= 2 ; argv += 2 ;
       }
     else if (!strcmp (*argv, "-b") && argc > 2)
       { if (!(ofb = oneFileOpenWriteNew (argv[1], schema, "sv", true, 1)))
-	  die ("failed to open .1insert file %s to write", argv[1]) ;
-	oneAddProvenance (ofb, PROG_NAME, VERSION, getCommandLine()) ;
-	ofbName = argv[1] ;
-	argc -= 2 ; argv += 2 ;
+          die ("failed to open .1insert file %s to write", argv[1]) ;
+        oneAddProvenance (ofb, PROG_NAME, VERSION, getCommandLine()) ;
+        ofbName = argv[1] ;
+        argc -= 2 ; argv += 2 ;
       }
     else
       { warn ("unknown option %s", *argv) ;
-	usage () ;
+	      usage () ;
       }
   oneSchemaDestroy(schema) ;
 
@@ -140,7 +141,7 @@ int main (int argc, char *argv[])
 
   if (ofb)
     { if (!db2Name)
-	die ("-b not possible: input %s has no b source (it has self-a alignments only)", *argv) ;
+	      die ("-b not possible: input %s has no b source (it has self-a alignments only)", *argv) ;
       oneAddReference (ofb, db2Name, 1) ; // NB change of order here
       oneAddReference (ofb, db1Name, 2) ;
       oneAddReference (ofb, cpath, 3) ;
@@ -242,6 +243,7 @@ void insertionReport (OneFile *of, AlnSeq *as, Overlap *olap, int n)
 
   oneInt(of,0) = MAX_OVERHANG ; oneWriteLine (of, 'o', 0, 0) ;
   oneInt(of,0) = MAX_SIZE ; oneWriteLine (of, 'i', 0, 0) ;
+  oneInt(of,0) = MIN_FLANK ; oneWriteLine (of, 'f', 0, 0) ;
   U64   ias = 0, sLen = 0 ;
   char *s = alnSeqNext (as, &sLen) ; // get 0'th sequence
   char *idBuf = new(256,char) ;
@@ -252,10 +254,10 @@ void insertionReport (OneFile *of, AlnSeq *as, Overlap *olap, int n)
       oneInt(of,0) = ins->b ; oneInt(of,1) = ins->b_match_begin ; oneInt(of,2) = ins->b_match_end ;
       oneWriteLine (of, 'B', 0, 0) ;
       while (ias < ins->a)
-	{ s = alnSeqNext (as, &sLen) ;
-	  if (!s) die ("run out of contig sequences at %lld < %d", ias, ins->a) ;
-	  ++ias ;
-	}
+        { s = alnSeqNext (as, &sLen) ;
+          if (!s) die ("run out of contig sequences at %lld < %d", ias, ins->a) ;
+          ++ias ;
+        }
       oneWriteLine (of, 'S', ins->a_end - ins->a_begin, s + ins->a_begin) ;
       sprintf (idBuf,"%d:%d-%d_%d:%d-%d",
 	       ins->a, ins->a_begin, ins->a_end, ins->b, ins->b_match_begin, ins->b_match_end) ;
