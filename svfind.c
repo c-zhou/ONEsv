@@ -143,6 +143,9 @@ int main (int argc, char *argv[])
       }
   oneSchemaDestroy(schema) ;
 
+  if (MIN_SIZE > MAX_SIZE)
+    die ("minimum size %d must not be larger than maximum size %d", MIN_SIZE, MAX_SIZE) ;
+
   if (MIN_FLANK < TERMSEQ_SIZE + MAX_OVERHANG)
     die ("minimum flanking alignment length %d must not be smaller than terminal sequence size %d + maximum overhang %d",
          MIN_FLANK, TERMSEQ_SIZE, MAX_OVERHANG) ;
