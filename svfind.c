@@ -5,7 +5,7 @@
  * Description:
  * Exported functions:
  * HISTORY:
- * Last edited: Jul 29 16:14 2025 (cz370)
+ * Last edited: Jul 29 17:37 2025 (cz370)
  * Created: Fri Aug  9 22:41:44 2024 (rd109)
  *-------------------------------------------------------------------
  */
@@ -28,7 +28,8 @@ static char* schemaText =
   "P 3 seq                   SEQUENCE\n"
   "S 2 sv                    SEQUENCE VARIANT\n"
   "D o 1 3 INT               maximum overhang (global)\n"
-  "D i 1 3 INT               maximum insert size (global)\n"
+  "D s 1 3 INT               minimum insert size (global)\n"
+  "D m 1 3 INT               maximum insert size (global)\n"
   "D f 1 3 INT               minimum flanking alignment length (global)\n"
   "D q 1 3 INT               terminal sequence size (global)\n"
   ".                         \n"
@@ -48,6 +49,7 @@ static char* schemaText =
   ;
 
 static int MAX_OVERHANG = 50 ;
+static int MIN_SIZE = 0 ;
 static int MAX_SIZE = 50000 ;
 static int MIN_FLANK = 1000 ;
 static int TERMSEQ_SIZE = 30 ;
@@ -56,6 +58,7 @@ void usage (void)
 {
   fprintf (stderr, "Usage: svfind [opts] <1alnFileName>\n") ;
   fprintf (stderr, "opts:     -w <int>         maximum overhang [%d]\n", MAX_OVERHANG) ;
+  fprintf (stderr, "          -s <int>         minimum length [%d]\n", MIN_SIZE) ;
   fprintf (stderr, "          -m <int>         maximum length [%d]\n", MAX_SIZE) ;
   fprintf (stderr, "          -f <int>         minimum flanking alignment length [%d]\n", MIN_FLANK);
   fprintf (stderr, "          -q <int>         terminal sequence size [%d]\n", TERMSEQ_SIZE) ;
@@ -99,6 +102,11 @@ int main (int argc, char *argv[])
       { if ((MAX_OVERHANG = atoi(argv[1])) <= 0)
           die ("max_overhang %s must be a positive integer", argv[1]) ;
         argc -= 2 ; argv += 2 ;
+      }
+    else if (!strcmp (*argv, "-s") && argc > 2)
+      { if ((MIN_SIZE = atoi(argv[1])) <= 0)
+	        MIN_SIZE = 0 ;
+	      argc -= 2 ; argv += 2 ;
       }
     else if (!strcmp (*argv, "-m") && argc > 2)
       { if ((MAX_SIZE = atoi(argv[1])) <= 0)
@@ -146,7 +154,7 @@ int main (int argc, char *argv[])
   // if db1Name and db2Name are the same, then we have a self-alignment
   if (strcmp (db1Name, db2Name) == 0)
     { warn ("self-alignment: db1Name %s and db2Name %s are the same", db1Name, db2Name) ;
-      free(db2Name) ;
+      free (db2Name) ;
       db2Name = 0 ;
     }
   
@@ -280,7 +288,8 @@ void insertionReport (OneFile *of, AlnSeq *as, AlnSeq *bs, Overlap *olap, int n)
           else if (oj->path.bbpos > oi->path.bepos + MAX_OVERHANG) break ;
           else if (COMP(oj->flags) && 
             oi->path.abpos > oj->path.aepos &&
-            oi->path.abpos < oj->path.aepos + MAX_SIZE)
+            oi->path.abpos < oj->path.aepos + MAX_SIZE &&
+            oi->path.abpos > oj->path.aepos + MIN_SIZE)
               { Insertion *ins = arrayp (a, arrayMax(a), Insertion) ;
                 ins->a = oj->aread ; ins->a_begin = oj->path.aepos ; ins->a_end = oi->path.abpos ;
                 ins->b = oj->bread ; ins->b_match_begin = oi->path.bepos ; ins->b_match_end = oj->path.bbpos ;
@@ -289,7 +298,8 @@ void insertionReport (OneFile *of, AlnSeq *as, AlnSeq *bs, Overlap *olap, int n)
               }
           else if (!COMP(oj->flags) &&
             oj->path.abpos > oi->path.aepos &&
-            oj->path.abpos < oi->path.aepos + MAX_SIZE)
+            oj->path.abpos < oi->path.aepos + MAX_SIZE &&
+            oj->path.abpos > oi->path.aepos + MIN_SIZE)
               { Insertion *ins = arrayp (a, arrayMax(a), Insertion) ;
                 ins->a = oj->aread ; ins->a_begin = oi->path.aepos ; ins->a_end = oj->path.abpos ;
                 ins->b = oj->bread ; ins->b_match_begin = oi->path.bepos ; ins->b_match_end = oj->path.bbpos ;
@@ -344,7 +354,8 @@ void insertionReport (OneFile *of, AlnSeq *as, AlnSeq *bs, Overlap *olap, int n)
   arrayCompress (a, insertionOrderA) ;
 
   oneInt(of,0) = MAX_OVERHANG ; oneWriteLine (of, 'o', 0, 0) ;
-  oneInt(of,0) = MAX_SIZE ; oneWriteLine (of, 'i', 0, 0) ;
+  oneInt(of,0) = MIN_SIZE ; oneWriteLine (of, 's', 0, 0) ;
+  oneInt(of,0) = MAX_SIZE ; oneWriteLine (of, 'm', 0, 0) ;
   oneInt(of,0) = MIN_FLANK ; oneWriteLine (of, 'f', 0, 0) ;
   oneInt(of,0) = TERMSEQ_SIZE ; oneWriteLine (of, 'q', 0, 0) ;
   char *idBuf = new(256,char) ;
