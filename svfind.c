@@ -30,6 +30,7 @@ static char* schemaText =
   "D o 1 3 INT               maximum overhang (global)\n"
   "D s 1 3 INT               minimum insert size (global)\n"
   "D m 1 3 INT               maximum insert size (global)\n"
+  "D x 1 3 INT               variant flank extension size (global)\n"
   "D f 1 3 INT               minimum flanking alignment length (global)\n"
   "D q 1 3 INT               terminal sequence size (global)\n"
   ".                         \n"
@@ -38,6 +39,7 @@ static char* schemaText =
   "D B 3 3 INT 3 INT 3 INT   source, start-match, end-match\n"
   "D C 0                     flag: in reverse complement\n"
   "D F 2 3 INT 3 INT         start-flank, end-flank\n"
+  "D X 2 3 INT 3 INT         variant flank extension\n"
   "D Q 1 3 DNA               source sequence (start-terminal + overhang + end-terminal)\n"
   "D D 1 3 DNA               target site duplication (TSD): sequence\n"
   "D R 2 3 INT 3 INT         Terminal Inverted Repeat (TIR): length, number of mismatches\n"
@@ -53,6 +55,7 @@ static int MIN_SIZE = 0 ;
 static int MAX_SIZE = 50000 ;
 static int MIN_FLANK = 1000 ;
 static int TERMSEQ_SIZE = 30 ;
+static int VAREXT_SIZE = 30 ;
 
 void usage (void)
 {
@@ -61,6 +64,7 @@ void usage (void)
   fprintf (stderr, "          -s <int>         minimum length [%d]\n", MIN_SIZE) ;
   fprintf (stderr, "          -m <int>         maximum length [%d]\n", MAX_SIZE) ;
   fprintf (stderr, "          -f <int>         minimum flanking alignment length [%d]\n", MIN_FLANK);
+  fprintf (stderr, "          -x <int>         variant flank extension size [%d]\n", VAREXT_SIZE);
   fprintf (stderr, "          -q <int>         terminal sequence size [%d]\n", TERMSEQ_SIZE) ;
   fprintf (stderr, "          -a <filename>    outfile for insertions/duplications in a\n") ;
   fprintf (stderr, "          -b <filename>    outfile for insertions/duplications in b\n") ;
@@ -114,13 +118,18 @@ int main (int argc, char *argv[])
 	      argc -= 2 ; argv += 2 ;
       }
     else if (!strcmp (*argv, "-f") && argc > 2)
-      { if ((MIN_FLANK = atoi(argv[1])) <= 0)
-	        die ("min_flank %s must be a positive integer", argv[1]) ;
+      { if ((MIN_FLANK = atoi(argv[1])) < 0)
+	        die ("min_flank %s must be a non-negative integer", argv[1]) ;
+	      argc -= 2 ; argv += 2 ;
+      }
+    else if (!strcmp (*argv, "-x") && argc > 2)
+      { if ((VAREXT_SIZE = atoi(argv[1])) < 0)
+	        die ("varext_size %s must be a non-negative integer", argv[1]) ;
 	      argc -= 2 ; argv += 2 ;
       }
     else if (!strcmp (*argv, "-q") && argc > 2)
-      { if ((TERMSEQ_SIZE = atoi(argv[1])) <= 0)
-	        die ("termseq_size %s must be a positive integer", argv[1]) ;
+      { if ((TERMSEQ_SIZE = atoi(argv[1])) < 0)
+	        die ("termseq_size %s must be a non-negative integer", argv[1]) ;
 	      argc -= 2 ; argv += 2 ;
       }
     else if (!strcmp (*argv, "-a") && argc > 2)
@@ -360,6 +369,7 @@ void insertionReport (OneFile *of, AlnSeq *as, AlnSeq *bs, Overlap *olap, int n)
   oneInt(of,0) = MIN_SIZE ; oneWriteLine (of, 's', 0, 0) ;
   oneInt(of,0) = MAX_SIZE ; oneWriteLine (of, 'm', 0, 0) ;
   oneInt(of,0) = MIN_FLANK ; oneWriteLine (of, 'f', 0, 0) ;
+  oneInt(of,0) = VAREXT_SIZE ; oneWriteLine (of, 'x', 0, 0) ;
   oneInt(of,0) = TERMSEQ_SIZE ; oneWriteLine (of, 'q', 0, 0) ;
   char *idBuf = new(256,char) ;
   s = alnSeqNext (as, &sLen) ; // get 0'th sequence
@@ -379,8 +389,12 @@ void insertionReport (OneFile *of, AlnSeq *as, AlnSeq *bs, Overlap *olap, int n)
         }
       oneInt(of,0) = ins->b_lf ; oneInt(of,1) = ins->b_rf ;
       oneWriteLine (of, 'F', 0, 0) ;
+      int lx = ins->a_begin < VAREXT_SIZE? ins->a_begin : VAREXT_SIZE ; 
+      int rx = ins->a_end + VAREXT_SIZE > sLen? sLen - ins->a_end : VAREXT_SIZE ;
+      oneInt(of,0) = lx ; oneInt(of,1) = rx ;
+      oneWriteLine (of, 'X', 0, 0) ;
       oneWriteLine (of, 'Q', ins->bl, termSeq + ins->bs) ;
-      oneWriteLine (of, 'S', ins->a_end - ins->a_begin, s + ins->a_begin) ;
+      oneWriteLine (of, 'S', ins->a_end - ins->a_begin + lx + rx, s + ins->a_begin - lx) ;
       sprintf (idBuf,"%d:%d-%d_%d:%d-%d",
 	       ins->a, ins->a_begin, ins->a_end, ins->b, ins->b_match_begin, ins->b_match_end) ;
       oneWriteLine (of, 'I', strlen(idBuf), idBuf) ;
